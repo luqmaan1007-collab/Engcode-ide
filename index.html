@@ -2,86 +2,162 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>EngCode IDE - Ultimate</title>
+<title>EngCode IDE</title>
 <style>
-body{margin:0;font-family:monospace;background:#1c1c1c;color:#ccc;}
-#toolbar{display:flex;justify-content:space-between;padding:10px;background:#333;}
+body{margin:0;font-family:monospace;background:#111;color:#0f0;}
+#toolbar{display:flex;justify-content:space-between;padding:10px;background:#222;}
 #toolbar button{padding:8px 12px;border:none;background:#4caf50;color:#fff;border-radius:4px;cursor:pointer;}
 #toolbar button:hover{background:#3e8e41;}
-#editor{width:100%;height:400px;background:#1e1e1e;color:#cfcfcf;border:none;padding:10px;font-size:14px;resize:none;}
-#output{width:100%;height:200px;background:#000;color:#0f0;overflow-y:auto;padding:10px;}
+#editor{width:100%;height:200px;background:#000;color:#0f0;border:none;padding:10px;font-size:14px;resize:none;}
+#gameCanvas{width:100%;height:500px;background:#111;display:block;margin:0 auto;}
+#joystick{position:absolute;bottom:20px;left:20px;width:100px;height:100px;background:rgba(255,255,255,0.2);border-radius:50%;touch-action:none;}
+#stick{position:absolute;left:25px;top:25px;width:50px;height:50px;background:rgba(255,255,255,0.5);border-radius:50%;}
 </style>
 </head>
 <body>
 
 <div id="toolbar">
-  <button onclick="runEngCode()">Run</button>
+  <button onclick="runEngCode()">Run EngCode</button>
   <button onclick="exportZip()">Export ZIP</button>
 </div>
 
-<textarea id="editor" placeholder="Write your EngCode here..."></textarea>
-<div id="output">Output will appear here...</div>
+<textarea id="editor" placeholder='START PROGRAM
+PRT"HELLO WORLD"
+PLAYER
+ENEMY
+CAR
+TOWER
+<END>'></textarea>
+<canvas id="gameCanvas"></canvas>
+
+<div id="joystick"><div id="stick"></div></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script>
-// === ENGCODE IDE FULL ===
-const outputEl = document.getElementById('output');
+const canvas = document.getElementById("gameCanvas");
+const ctx = canvas.getContext("2d");
+canvas.width = window.innerWidth;
+canvas.height = 500;
 
-// Define full vocabulary (can expand)
-const engWords = {
-  'PRT': msg=>msg,
-  'GENERATE': msg=>`[Generated] ${msg}`,
-  'HI': ()=>'Hello!',
-  'BYE': ()=>'Goodbye!',
-  'FPS': ()=>'[FPS Game Skeleton Created]',
-  'RACING': ()=>'[Racing Game Skeleton Created]',
-  'AAA': ()=>'[AAA Level Game Skeleton Created]',
-  // Add more English words as commands
-};
+// Dynamisk dictionary
+let engWords = {};
 
-function runEngCode(){
-  const code = document.getElementById('editor').value;
-  outputEl.textContent='';
-  const lines = code.split('\n').map(l=>l.trim()).filter(l=>l);
-  if(!lines[0].startsWith('START PROGRAM') || !lines[lines.length-1].startsWith('<END>')){
-    outputEl.textContent='Error: START PROGRAM and <END> required';
-    return;
+// Fetch engelska ord dynamiskt
+fetch('https://raw.githubusercontent.com/luqmaan1007-collab/eng-words/main/words.json')
+.then(res=>res.json())
+.then(data=>{
+  data.forEach(word=>{
+    engWords[word.toUpperCase()] = ()=>createGameObject(randomType(), random(50,canvas.width-100), random(50,canvas.height-100));
+  });
+});
+
+// Utility
+function random(min,max){return Math.floor(Math.random()*(max-min)+min);}
+function randomType(){const types=["cube","car","tower","enemy","weapon","player","powerup"]; return types[random(0,types.length)];}
+
+// Spelobjekt array
+let objects = [];
+
+// Spel loop
+function gameLoop(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  for(let obj of objects){
+    obj.update();
+    obj.draw();
   }
-  for(let i=1;i<lines.length-1;i++){
-    let line = lines[i];
-    try{
-      const prtMatch = line.match(/^PRT"(.*)"$/);
-      if(prtMatch){ outputEl.textContent+=engWords['PRT'](prtMatch[1])+'\n'; continue; }
-
-      const genMatch = line.match(/^GENERATE (.*)$/);
-      if(genMatch){ outputEl.textContent+=engWords['GENERATE'](genMatch[1])+'\n'; continue; }
-
-      const word = line.split(' ')[0];
-      if(engWords[word]){
-        const res = engWords[word]();
-        if(res) outputEl.textContent+=res+'\n';
-        continue;
-      }
-      outputEl.textContent+=`[Unknown command] ${line}\n`;
-    }catch(e){ outputEl.textContent+=`[Error] ${line}\n`; }
-  }
+  requestAnimationFrame(gameLoop);
 }
 
+// Skapa spelobjekt
+function createGameObject(type,x,y){
+  let obj = {
+    type:type,
+    x:x,
+    y:y,
+    width: type==="car"?80: type==="tower"?30:50,
+    height: type==="car"?40:type==="tower"?100:50,
+    vx:0,
+    vy:0,
+    update:function(){
+      if(this.type==="player"){
+        this.x+=this.vx;
+        this.y+=this.vy;
+      }
+      if(this.type==="enemy"){ this.x+=random(-1,2); this.y+=random(-1,2);}
+      if(this.type==="powerup"){ this.y+=0.5;}
+      // Kollision med kanvas
+      if(this.x<0)this.x=0;
+      if(this.y<0)this.y=0;
+      if(this.x+this.width>canvas.width)this.x=canvas.width-this.width;
+      if(this.y+this.height>canvas.height)this.y=canvas.height-this.height;
+    },
+    draw:function(){
+      ctx.fillStyle="#"+Math.floor(Math.random()*16777215).toString(16);
+      if(this.type==="cube") ctx.fillRect(this.x,this.y,this.width,this.height);
+      if(this.type==="car") ctx.fillRect(this.x,this.y,this.width,this.height);
+      if(this.type==="tower") ctx.fillRect(this.x,this.y,this.width,this.height);
+      if(this.type==="enemy") { ctx.beginPath(); ctx.arc(this.x+25,this.y+25,25,0,Math.PI*2); ctx.fill();}
+      if(this.type==="player") ctx.fillRect(this.x,this.y,this.width,this.height);
+      if(this.type==="powerup") ctx.fillRect(this.x,this.y,this.width,this.height);
+      ctx.fillStyle="#0f0"; ctx.fillText(this.type,this.x,this.y-5);
+    }
+  };
+  objects.push(obj);
+  return obj;
+}
+
+// Joystick
+let stick = document.getElementById("stick");
+let joystick = document.getElementById("joystick");
+let dragging=false;
+let playerObj=null;
+
+stick.addEventListener("pointerdown",()=>dragging=true);
+document.addEventListener("pointerup",()=>dragging=false);
+document.addEventListener("pointermove",(e)=>{
+  if(dragging && playerObj){
+    let rect=joystick.getBoundingClientRect();
+    let dx=e.clientX-(rect.left+50);
+    let dy=e.clientY-(rect.top+50);
+    playerObj.vx=dx/10;
+    playerObj.vy=dy/10;
+  }
+});
+
+// Kör EngCode
+function runEngCode(){
+  const code = document.getElementById("editor").value;
+  const lines = code.split("\n").map(l=>l.trim()).filter(l=>l);
+  objects=[];
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  if(!lines[0].startsWith("START PROGRAM") || !lines[lines.length-1].startsWith("<END>")){
+    alert("START PROGRAM and <END> required!"); return;
+  }
+  for(let i=1;i<lines.length-1;i++){
+    let line=lines[i].toUpperCase();
+    if(engWords[line]) engWords[line]();
+    else if(line==="PLAYER") playerObj=createGameObject("player",canvas.width/2,canvas.height/2);
+    else if(line.startsWith("PRT")) alert(line.substring(3).replace(/"/g,""));
+    else console.log("[Unknown command] "+line);
+  }
+  gameLoop();
+}
+
+// Export ZIP
 function exportZip(){
-  const code = document.getElementById('editor').value;
-  if(!code.trim()){ alert('Paste your code first!'); return; }
+  const code = document.getElementById("editor").value;
+  if(!code.trim()){alert("Paste your code first!"); return;}
   const zip = new JSZip();
   const htmlContent = `
 <!DOCTYPE html>
 <html lang="en">
 <head><meta charset="UTF-8"><title>EngCode Output</title></head>
 <body><pre>${code.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</pre></body></html>`;
-  zip.file("index.html", htmlContent);
-  zip.folder("assets");
+  zip.file("index.html",htmlContent);
   zip.generateAsync({type:"blob"}).then(content=>{
     const a=document.createElement('a');
     a.href=URL.createObjectURL(content);
-    a.download="Offline_Games.zip";
+    a.download="EngCode_AAA_Game.zip";
     a.click();
   });
 }
