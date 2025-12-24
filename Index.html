@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>EngCode IDE - Ultimate</title>
+<style>
+body{margin:0;font-family:monospace;background:#1c1c1c;color:#ccc;}
+#toolbar{display:flex;justify-content:space-between;padding:10px;background:#333;}
+#toolbar button{padding:8px 12px;border:none;background:#4caf50;color:#fff;border-radius:4px;cursor:pointer;}
+#toolbar button:hover{background:#3e8e41;}
+#editor{width:100%;height:400px;background:#1e1e1e;color:#cfcfcf;border:none;padding:10px;font-size:14px;resize:none;}
+#output{width:100%;height:200px;background:#000;color:#0f0;overflow-y:auto;padding:10px;}
+</style>
+</head>
+<body>
+
+<div id="toolbar">
+  <button onclick="runEngCode()">Run</button>
+  <button onclick="exportZip()">Export ZIP</button>
+</div>
+
+<textarea id="editor" placeholder="Write your EngCode here..."></textarea>
+<div id="output">Output will appear here...</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script>
+// === ENGCODE IDE FULL ===
+const outputEl = document.getElementById('output');
+
+// Define full vocabulary (can expand)
+const engWords = {
+  'PRT': msg=>msg,
+  'GENERATE': msg=>`[Generated] ${msg}`,
+  'HI': ()=>'Hello!',
+  'BYE': ()=>'Goodbye!',
+  'FPS': ()=>'[FPS Game Skeleton Created]',
+  'RACING': ()=>'[Racing Game Skeleton Created]',
+  'AAA': ()=>'[AAA Level Game Skeleton Created]',
+  // Add more English words as commands
+};
+
+function runEngCode(){
+  const code = document.getElementById('editor').value;
+  outputEl.textContent='';
+  const lines = code.split('\n').map(l=>l.trim()).filter(l=>l);
+  if(!lines[0].startsWith('START PROGRAM') || !lines[lines.length-1].startsWith('<END>')){
+    outputEl.textContent='Error: START PROGRAM and <END> required';
+    return;
+  }
+  for(let i=1;i<lines.length-1;i++){
+    let line = lines[i];
+    try{
+      const prtMatch = line.match(/^PRT"(.*)"$/);
+      if(prtMatch){ outputEl.textContent+=engWords['PRT'](prtMatch[1])+'\n'; continue; }
+
+      const genMatch = line.match(/^GENERATE (.*)$/);
+      if(genMatch){ outputEl.textContent+=engWords['GENERATE'](genMatch[1])+'\n'; continue; }
+
+      const word = line.split(' ')[0];
+      if(engWords[word]){
+        const res = engWords[word]();
+        if(res) outputEl.textContent+=res+'\n';
+        continue;
+      }
+      outputEl.textContent+=`[Unknown command] ${line}\n`;
+    }catch(e){ outputEl.textContent+=`[Error] ${line}\n`; }
+  }
+}
+
+function exportZip(){
+  const code = document.getElementById('editor').value;
+  if(!code.trim()){ alert('Paste your code first!'); return; }
+  const zip = new JSZip();
+  const htmlContent = `
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><title>EngCode Output</title></head>
+<body><pre>${code.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</pre></body></html>`;
+  zip.file("index.html", htmlContent);
+  zip.folder("assets");
+  zip.generateAsync({type:"blob"}).then(content=>{
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(content);
+    a.download="Offline_Games.zip";
+    a.click();
+  });
+}
+</script>
+
+</body>
+</html>
