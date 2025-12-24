@@ -1,8 +1,8 @@
-<!DOCTYPE html>
+  <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>EngCode IDE - AAA Game Generator</title>
+<title>EngCode ide</title>
 <style>
 body{margin:0;font-family:monospace;background:#111;color:#0f0;}
 #toolbar{display:flex;justify-content:space-between;padding:10px;background:#222;}
@@ -27,13 +27,14 @@ PLAYER
 ENEMY
 CAR
 TOWER
-GENERATE QUIZ ABOUT LUA =TRUE
 <END>'></textarea>
 <canvas id="gameCanvas"></canvas>
+
 <div id="joystick"><div id="stick"></div></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script>
+// ================= EngCode AAA Multiplayer =================
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 canvas.width = window.innerWidth;
@@ -41,34 +42,32 @@ canvas.height = 500;
 
 let engWords = {};
 let objects = [];
+let playerObj = null;
 
-// Dynamisk fetch av alla engelska ord
+// Dynamisk fetch engelska ord (global JSON från public repo med alla ord)
 fetch('https://raw.githubusercontent.com/dwyl/english-words/master/words_dictionary.json')
 .then(res => res.json())
 .then(data => {
   Object.keys(data).forEach(word => {
-    engWords[word.toUpperCase()] = () => createGameObject(randomType(), random(50, canvas.width-100), random(50, canvas.height-100));
+    engWords[word.toUpperCase()] = () => createGameObject(randomType(), random(50,canvas.width-100), random(50,canvas.height-100));
   });
 });
 
+// Utility
 function random(min,max){return Math.floor(Math.random()*(max-min)+min);}
 function randomType(){const types=["cube","car","tower","enemy","weapon","player","powerup"]; return types[random(0,types.length)];}
 
-let playerObj=null;
-
-// Skapa spelobjekt
+// Spelobjekt klass
 function createGameObject(type,x,y){
   let obj = {
-    type:type,
-    x:x,
-    y:y,
+    type:type, x:x, y:y,
     width:type==="car"?80:type==="tower"?30:50,
     height:type==="car"?40:type==="tower"?100:50,
-    vx:0,vy:0,
+    vx:0, vy:0,
     update:function(){
-      if(this.type==="player"){ this.x+=this.vx; this.y+=this.vy; }
-      if(this.type==="enemy"){ this.x+=random(-1,2); this.y+=random(-1,2); }
-      if(this.type==="powerup"){ this.y+=0.5; }
+      if(this.type==="player"){ this.x+=this.vx; this.y+=this.vy;}
+      if(this.type==="enemy"){ this.x+=random(-1,2); this.y+=random(-1,2);}
+      if(this.type==="powerup"){ this.y+=0.5;}
       if(this.x<0)this.x=0;if(this.y<0)this.y=0;
       if(this.x+this.width>canvas.width)this.x=canvas.width-this.width;
       if(this.y+this.height>canvas.height)this.y=canvas.height-this.height;
@@ -78,7 +77,7 @@ function createGameObject(type,x,y){
       if(this.type==="cube") ctx.fillRect(this.x,this.y,this.width,this.height);
       if(this.type==="car") ctx.fillRect(this.x,this.y,this.width,this.height);
       if(this.type==="tower") ctx.fillRect(this.x,this.y,this.width,this.height);
-      if(this.type==="enemy"){ ctx.beginPath(); ctx.arc(this.x+25,this.y+25,25,0,Math.PI*2); ctx.fill(); }
+      if(this.type==="enemy") { ctx.beginPath(); ctx.arc(this.x+25,this.y+25,25,0,Math.PI*2); ctx.fill();}
       if(this.type==="player") ctx.fillRect(this.x,this.y,this.width,this.height);
       if(this.type==="powerup") ctx.fillRect(this.x,this.y,this.width,this.height);
       ctx.fillStyle="#0f0"; ctx.fillText(this.type,this.x,this.y-5);
@@ -86,13 +85,6 @@ function createGameObject(type,x,y){
   };
   objects.push(obj);
   return obj;
-}
-
-// Game loop
-function gameLoop(){
-  ctx.clearRect(0,0,canvas.width,canvas.height);
-  for(let obj of objects){ obj.update(); obj.draw(); }
-  requestAnimationFrame(gameLoop);
 }
 
 // Joystick
@@ -107,25 +99,32 @@ document.addEventListener("pointermove",(e)=>{
     let rect=joystick.getBoundingClientRect();
     let dx=e.clientX-(rect.left+50);
     let dy=e.clientY-(rect.top+50);
-    playerObj.vx=dx/10;
-    playerObj.vy=dy/10;
+    playerObj.vx=dx/10; playerObj.vy=dy/10;
   }
 });
+
+// Game loop
+function gameLoop(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  for(let obj of objects){ obj.update(); obj.draw();}
+  requestAnimationFrame(gameLoop);
+}
 
 // Kör EngCode
 function runEngCode(){
   const code = document.getElementById("editor").value;
   const lines = code.split("\n").map(l=>l.trim()).filter(l=>l);
-  objects=[]; ctx.clearRect(0,0,canvas.width,canvas.height);
+  objects=[]; playerObj=null;
   if(!lines[0].startsWith("START PROGRAM") || !lines[lines.length-1].startsWith("<END>")){
     alert("START PROGRAM and <END> required!"); return;
   }
   for(let i=1;i<lines.length-1;i++){
-    let line = lines[i].toUpperCase();
+    let line=lines[i].toUpperCase();
     if(engWords[line]) engWords[line]();
     else if(line==="PLAYER") playerObj=createGameObject("player",canvas.width/2,canvas.height/2);
-    else if(line.startsWith("PRT")) alert(line.substring(3).replace(/"/g,""));
-    else if(line.startsWith("GENERATE QUIZ")) alert("[Quiz Generated: "+line.replace("GENERATE QUIZ","").trim()+"]");
+    else if(line.startsWith("PRT")) console.log(line.substring(3).replace(/"/g,""));
+    else if(line.startsWith("GENERATE QUIZ")) console.log("[Quiz generated: "+line.replace("GENERATE QUIZ","").trim()+"]");
+    // Ingen unknown command
   }
   gameLoop();
 }
@@ -144,7 +143,7 @@ function exportZip(){
   zip.generateAsync({type:"blob"}).then(content=>{
     const a=document.createElement('a');
     a.href=URL.createObjectURL(content);
-    a.download="EngCode_AAA_Game.zip";
+    a.download="EngCode_AAA_Multiplayer.zip";
     a.click();
   });
 }
