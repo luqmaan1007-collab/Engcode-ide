@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>EngCode ide</title>
+<title>EngCode IDE</title>
 <style>
 body{margin:0;font-family:monospace;background:#111;color:#0f0;}
 #toolbar{display:flex;justify-content:space-between;padding:10px;background:#222;}
@@ -18,7 +18,7 @@ body{margin:0;font-family:monospace;background:#111;color:#0f0;}
 
 <div id="toolbar">
   <button onclick="runEngCode()">Run EngCode</button>
-  <button onclick="exportZip()">Export ZIP</button>
+  <button onclick="exportAPK()">Export APK</button>
 </div>
 
 <textarea id="editor" placeholder='START PROGRAM
@@ -44,7 +44,7 @@ let engWords = {};
 let objects = [];
 let playerObj = null;
 
-// Dynamisk fetch engelska ord (global JSON från public repo med alla ord)
+// Dynamisk fetch engelska ord
 fetch('https://raw.githubusercontent.com/dwyl/english-words/master/words_dictionary.json')
 .then(res => res.json())
 .then(data => {
@@ -124,28 +124,56 @@ function runEngCode(){
     else if(line==="PLAYER") playerObj=createGameObject("player",canvas.width/2,canvas.height/2);
     else if(line.startsWith("PRT")) console.log(line.substring(3).replace(/"/g,""));
     else if(line.startsWith("GENERATE QUIZ")) console.log("[Quiz generated: "+line.replace("GENERATE QUIZ","").trim()+"]");
-    // Ingen unknown command
   }
   gameLoop();
 }
 
-// Export ZIP
-function exportZip(){
-  const code = document.getElementById("editor").value;
-  if(!code.trim()){alert("Paste your code first!"); return;}
-  const zip = new JSZip();
-  const htmlContent = `
-<!DOCTYPE html>
-<html lang="en">
-<head><meta charset="UTF-8"><title>EngCode Output</title></head>
-<body><pre>${code.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</pre></body></html>`;
-  zip.file("index.html",htmlContent);
-  zip.generateAsync({type:"blob"}).then(content=>{
-    const a=document.createElement('a');
-    a.href=URL.createObjectURL(content);
-    a.download="EngCode_AAA_Multiplayer.zip";
-    a.click();
-  });
+// ================= Export APK =================
+function exportAPK(){
+  let app_name = prompt("Enter your app name:");
+  if(!app_name){ alert("App name is required!"); return; }
+
+  // Filval för ikon och splash
+  const iconInput = document.createElement("input");
+  iconInput.type = "file";
+  iconInput.accept = "image/*";
+  iconInput.onchange = () => {
+    const iconFile = iconInput.files[0];
+
+    const splashInput = document.createElement("input");
+    splashInput.type = "file";
+    splashInput.accept = "image/*";
+    splashInput.onchange = () => {
+      const splashFile = splashInput.files[0];
+
+      // Skapa FormData för API
+      const formData = new FormData();
+      formData.append("app_name", app_name);
+      formData.append("package_name", "com.engcodeteam.myapp");
+      formData.append("website_url", window.location.href);
+      formData.append("telegram_id", "123456789");
+      formData.append("email", "developer@example.com");
+      formData.append("dev_telegram_id", "6241607559");
+      formData.append("bot_id", "987654321");
+      formData.append("icon_file", iconFile);
+      formData.append("splash_file", splashFile);
+
+      fetch("https://flashcomcloud.alwaysdata.net/build-api", {
+        method: "POST",
+        body: formData
+      })
+      .then(res => res.blob())
+      .then(blob => {
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `${app_name}.apk`;
+        a.click();
+      })
+      .catch(err => alert("API Error: " + err));
+    };
+    splashInput.click();
+  };
+  iconInput.click();
 }
 </script>
 
