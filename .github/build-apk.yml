@@ -1,0 +1,43 @@
+name: Build EngCode APK
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Set up Java
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Install Android SDK
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 33
+          target: default
+          arch: x86_64
+          force-avd-create: true
+
+      - name: Build APK
+        run: |
+          mkdir -p app/src/main/assets
+          cp -r ./engcode-html/* app/src/main/assets/
+          echo "apply plugin: 'com.android.application'" > app/build.gradle
+          echo "android { compileSdkVersion 33 defaultConfig { applicationId 'com.Engcodeteam.mygame' minSdkVersion 21 targetSdkVersion 35 versionCode 1 versionName '1.0' } buildTypes { release { minifyEnabled false proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro' } } }" >> app/build.gradle
+          ./gradlew assembleRelease
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v3
+        with:
+          name: EngCode-APK
+          path: app/build/outputs/apk/release/app-release.apk
